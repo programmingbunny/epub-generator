@@ -14,7 +14,7 @@ const (
 	AUTHOR_NAME    = "Author McAwesome"
 	PUBLISHER_NAME = "Publications, L.C."
 	COPYRIGHT      = "Copyright © 2022 Publications"
-	ALT_FOR_COVER  = "MARKED the Chronicles of a Fantasy Epic Series"
+	ALT_FOR_COVER  = "MARKED, the Chronicles of a Fantasy Epic Series"
 
 	// constants for directories
 	NEW_DIRECTORY = "new-dir-"
@@ -86,7 +86,7 @@ func main() {
 	defer file.Close()
 
 	// open container.xml file in META-INF directory to write to it
-	file, err = os.OpenFile("new-dir-"+name+META_INF+"/container.xml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	file, err = os.OpenFile(NEW_DIRECTORY+name+META_INF+"/container.xml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		fmt.Println("Could not open new-dir-" + name + META_INF + "/container.xml")
 		return
@@ -108,7 +108,7 @@ func main() {
 	defer sourceFile.Close()
 
 	// create new cover image to EPUB/covers directory
-	newFile, err := os.Create("new-dir-" + name + EPUB + COVERS + "/cover-test.jpg")
+	newFile, err := os.Create(NEW_DIRECTORY + name + EPUB + COVERS + "/cover-test.jpg")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func main() {
 	}
 
 	// create cover.xhtml file in EPUB directory
-	path = filepath.Join(cwd, "new-dir-"+name+EPUB, "cover.xhtml")
+	path = filepath.Join(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
 	newFilePath = filepath.FromSlash(path)
 	file, err = os.Create(newFilePath)
 	if err != nil {
@@ -130,7 +130,7 @@ func main() {
 	defer file.Close()
 
 	// open cover.xhtml file in EPUB directory to write to it
-	file, err = os.OpenFile("new-dir-"+name+EPUB+"cover.xhtml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	file, err = os.OpenFile(NEW_DIRECTORY+name+EPUB+"/cover.xhtml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		fmt.Println("Could not open new-dir-" + name + EPUB + "/cover.xhtml")
 		return
