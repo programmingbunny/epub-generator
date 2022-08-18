@@ -17,10 +17,14 @@ const (
 	ALT_FOR_COVER  = "MARKED, the Chronicles of a Fantasy Epic Series"
 
 	// constants for directories
-	NEW_DIRECTORY = "new-dir-"
-	EPUB          = "/EPUB"
-	META_INF      = "/META-INF"
-	COVERS        = "/covers"
+	NEW_DIRECTORY   = "new-dir-"
+	EPUB            = "/EPUB"
+	META_INF        = "/META-INF"
+	COVERS          = "/covers"
+	NO_SLASH_COVERS = "covers"
+	MIMETYPE        = "/mimetype"
+
+	WRITE_MIMETYPE = "application/epub+zip"
 )
 
 func main() {
@@ -28,53 +32,38 @@ func main() {
 
 	cwd, _ := os.Getwd()
 
-	// makes the parent directory
+	// makes the parent directory (/new-dir-###/)
 	err := makeNewDirectory(NEW_DIRECTORY + name)
 	if err != nil {
 		return
 	}
 
-	// makes the EPUB directory within the parent directory
+	// makes the EPUB directory within the parent directory (/new-dir-###/EPUB)
 	makeNewDirectory(NEW_DIRECTORY + name + EPUB)
 	if err != nil {
 		return
 	}
 
-	// makes the META-INF directory within the parent directory
+	// makes the META-INF directory within the parent directory (/new-dir-###/META-INF)
 	makeNewDirectory(NEW_DIRECTORY + name + META_INF)
 	if err != nil {
 		return
 	}
 
-	// makes the EPUB/covers directory within the EPUBS directory
+	// makes the EPUB/covers directory (/new-dir-###/EPUB/covers)
 	makeNewDirectory(NEW_DIRECTORY + name + EPUB + COVERS)
 	if err != nil {
 		return
 	}
 
-	// create mimetype file in parent directory
-	path := filepath.Join(cwd, "new-dir-"+name, "mimetype")
-	newFilePath := filepath.FromSlash(path)
-	file, err := os.Create(newFilePath)
+	// create mimetype file in parent directory (/new-dir-###/mimetype)
+	newFilePath, path, file, err := createFiles(cwd, NEW_DIRECTORY+name, "mimetype")
 	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	// open mimetype file in parent directory to write to it
-	file, err = os.OpenFile("new-dir-"+name+"/mimetype", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
-	if err != nil {
-		fmt.Println("Could not open new-dir-" + name + " mimetype")
 		return
 	}
 
-	defer file.Close()
-
-	// write mimetype
-	_, err2 := file.WriteString("application/epub+zip")
-	if err2 != nil {
-		fmt.Println("Could not write text to new-dir-" + name + " mimetype")
-	}
+	// opens & writes to mimetype file in parent directory (/new-dir-###/mimetype)
+	openWriteFiles(file, NEW_DIRECTORY+name, MIMETYPE, WRITE_MIMETYPE)
 
 	// create container.xml file in META-INF directory
 	path = filepath.Join(cwd, "new-dir-"+name+META_INF, "container.xml")
@@ -95,7 +84,7 @@ func main() {
 	defer file.Close()
 
 	// write container.xml
-	_, err2 = file.WriteString(containerXml())
+	_, err2 := file.WriteString(containerXml())
 	if err2 != nil {
 		fmt.Println("Could not write text to new-dir-" + name + META_INF + "/container.xml")
 	}
@@ -139,7 +128,7 @@ func main() {
 	defer file.Close()
 
 	// write to cover.xhtml
-	_, err2 = file.WriteString(coverXhtml(COVERS + "/cover-test.jpg"))
+	_, err2 = file.WriteString(coverXhtml(NO_SLASH_COVERS + "/cover-test.jpg"))
 	if err2 != nil {
 		fmt.Println("Could not write text to new-dir-" + name + EPUB + "/cover.xhtml")
 	}
@@ -163,11 +152,12 @@ func main() {
 	defer file.Close()
 
 	// write to package.opf
-	_, err2 = file.WriteString(epubPackageOpf(COVERS + "/cover-test.jpg"))
+	_, err2 = file.WriteString(epubPackageOpf(NO_SLASH_COVERS + "/cover-test.jpg"))
 	if err2 != nil {
 		fmt.Println("Could not write text to " + NEW_DIRECTORY + name + EPUB + "/package.opf")
 	}
 
+	fmt.Println("Successfully created ", NEW_DIRECTORY+name)
 }
 
 func makeNewDirectory(path string) (err error) {
@@ -179,11 +169,13 @@ func makeNewDirectory(path string) (err error) {
 	return nil
 }
 
+// helper function for generating unique id for parent directory of epub file
 func numberGen() string {
 	p, _ := rand.Prime(rand.Reader, 64)
 	return p.String()
 }
 
+// helper function for creating cover.xhtml file (/new-dir-###/EPUB/cover.xhtml)
 func coverXhtml(path string) string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
@@ -204,6 +196,7 @@ func coverXhtml(path string) string {
 	return returnThis
 }
 
+// helper function for creating package.opf file (/new-dir-###/EPUB/package.opf)
 func epubPackageOpf(path string) string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
@@ -242,6 +235,7 @@ func epubPackageOpf(path string) string {
 	return returnThis
 }
 
+// helper function for creating container.xml (/new-dir-###/META-INF/container.xml)
 func containerXml() string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
@@ -250,4 +244,33 @@ func containerXml() string {
 		</rootfiles>
 	</container>`
 	return returnThis
+}
+
+func createFiles(cwd, directory, fileName string) (string, string, *os.File, error) {
+	path := filepath.Join(cwd, directory, fileName)
+	newFilePath := filepath.FromSlash(path)
+	file, err := os.Create(newFilePath)
+	if err != nil {
+		fmt.Println(err)
+		return "", "", nil, err
+	}
+	defer file.Close()
+
+	return newFilePath, path, file, nil
+}
+
+func openWriteFiles(file *os.File, path, fileName, write string) error {
+	file, err := os.OpenFile(path+fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	if err != nil {
+		fmt.Println("Could not open ", path+fileName+": ", err)
+		return nil
+	}
+	defer file.Close()
+
+	_, err2 := file.WriteString(write)
+	if err2 != nil {
+		fmt.Println("Could not write text to "+path+fileName+": ", err)
+		return nil
+	}
+	return nil
 }
