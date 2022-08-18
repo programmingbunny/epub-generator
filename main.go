@@ -21,10 +21,11 @@ const (
 	EPUB            = "/EPUB"
 	META_INF        = "/META-INF"
 	COVERS          = "/covers"
-	NO_SLASH_COVERS = "covers"
+	NO_SLASH_COVERS = "covers/"
 	MIMETYPE        = "/mimetype"
 
 	WRITE_MIMETYPE = "application/epub+zip"
+	IMAGE_NAME     = "cover-test.jpg"
 )
 
 func main() {
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	// create mimetype file in parent directory (/new-dir-###/mimetype)
-	newFilePath, path, file, err := createFiles(cwd, NEW_DIRECTORY+name, "mimetype")
+	newFilePath, _, file, err := createFiles(cwd, NEW_DIRECTORY+name, "mimetype")
 	if err != nil {
 		return
 	}
@@ -65,29 +66,14 @@ func main() {
 	// opens & writes to mimetype file in parent directory (/new-dir-###/mimetype)
 	openWriteFiles(file, NEW_DIRECTORY+name, MIMETYPE, WRITE_MIMETYPE)
 
-	// create container.xml file in META-INF directory
-	path = filepath.Join(cwd, "new-dir-"+name+META_INF, "container.xml")
-	newFilePath = filepath.FromSlash(path)
-	file, err = os.Create(newFilePath)
+	// create container.xml file in META-INF directory (/new-dir-###/META-INF/container.xml)
+	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+META_INF, "container.xml")
 	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	// open container.xml file in META-INF directory to write to it
-	file, err = os.OpenFile(NEW_DIRECTORY+name+META_INF+"/container.xml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
-	if err != nil {
-		fmt.Println("Could not open new-dir-" + name + META_INF + "/container.xml")
 		return
 	}
 
-	defer file.Close()
-
-	// write container.xml
-	_, err2 := file.WriteString(containerXml())
-	if err2 != nil {
-		fmt.Println("Could not write text to new-dir-" + name + META_INF + "/container.xml")
-	}
+	// opens & writes to container.xml file in META-inf directory (/new-dir-###/META-INF/container.xml)
+	openWriteFiles(file, NEW_DIRECTORY+name+META_INF, "/container.xml", containerXml())
 
 	// adding cover image to EPUB/covers directory
 	sourceFile, err := os.Open("./cover-test.jpg")
@@ -109,55 +95,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// create cover.xhtml file in EPUB directory
-	path = filepath.Join(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
-	newFilePath = filepath.FromSlash(path)
-	file, err = os.Create(newFilePath)
+	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/cover.xhtml)
+	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
 	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	// open cover.xhtml file in EPUB directory to write to it
-	file, err = os.OpenFile(NEW_DIRECTORY+name+EPUB+"/cover.xhtml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
-	if err != nil {
-		fmt.Println("Could not open new-dir-" + name + EPUB + "/cover.xhtml")
 		return
 	}
 
-	defer file.Close()
+	// opens & writes to cover.xhtml file in META-inf directory (/new-dir-###/EPUB/cover.xhtml)
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/cover.xhtml", coverXhtml(NO_SLASH_COVERS+IMAGE_NAME))
 
-	// write to cover.xhtml
-	_, err2 = file.WriteString(coverXhtml(NO_SLASH_COVERS + "/cover-test.jpg"))
-	if err2 != nil {
-		fmt.Println("Could not write text to new-dir-" + name + EPUB + "/cover.xhtml")
-	}
-
-	// create package.opf file in EPUB directory
-	path = filepath.Join(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
-	newFilePath = filepath.FromSlash(path)
-	file, err = os.Create(newFilePath)
+	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
 	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	// open package.opf file in EPUB directory to write to it
-	file, err = os.OpenFile(NEW_DIRECTORY+name+EPUB+"/package.opf", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
-	if err != nil {
-		fmt.Println("Could not open new-dir-" + name + EPUB + "package.opf")
 		return
 	}
 
-	defer file.Close()
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_SLASH_COVERS+IMAGE_NAME))
 
-	// write to package.opf
-	_, err2 = file.WriteString(epubPackageOpf(NO_SLASH_COVERS + "/cover-test.jpg"))
-	if err2 != nil {
-		fmt.Println("Could not write text to " + NEW_DIRECTORY + name + EPUB + "/package.opf")
-	}
-
-	fmt.Println("Successfully created ", NEW_DIRECTORY+name)
+	fmt.Println("Successfully created ", newFilePath)
 }
 
 func makeNewDirectory(path string) (err error) {
