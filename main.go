@@ -2,39 +2,58 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/programmingbunny/epub-generator/model"
 )
 
 const (
-	TITLE_NAME     = "Awesome Titles of Awesome"
-	AUTHOR_NAME    = "Author McAwesome"
 	PUBLISHER_NAME = "Publications, L.C."
 	COPYRIGHT      = "Copyright © 2022 Publications"
 	ALT_FOR_COVER  = "MARKED, the Chronicles of a Fantasy Epic Series"
 
 	// constants for directories
-	NEW_DIRECTORY   = "new-dir-"
-	EPUB            = "/EPUB"
-	META_INF        = "/META-INF"
-	COVERS          = "/covers"
-	NO_SLASH_COVERS = "covers/"
-	MIMETYPE        = "/mimetype"
+	NEW_DIRECTORY         = "new-dir-"
+	EPUB                  = "/EPUB"
+	META_INF              = "/META-INF"
+	COVERS                = "/covers"
+	NO_FRONT_SLASH_COVERS = "covers/"
+	MIMETYPE              = "/mimetype"
 
 	WRITE_MIMETYPE = "application/epub+zip"
 	IMAGE_NAME     = "cover-test.jpg"
 )
 
 func main() {
+	id := "insertIdHereForTesting"
+	response, err := http.Get("http://localhost:3000/book/" + id)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	var newBook model.Book
+	json.Unmarshal(responseData, &newBook)
+
 	name := numberGen()
 
 	cwd, _ := os.Getwd()
 
 	// makes the parent directory (/new-dir-###/)
-	err := makeNewDirectory(NEW_DIRECTORY + name)
+	err = makeNewDirectory(NEW_DIRECTORY + name)
 	if err != nil {
 		return
 	}
@@ -102,14 +121,16 @@ func main() {
 	}
 
 	// opens & writes to cover.xhtml file in META-inf directory (/new-dir-###/EPUB/cover.xhtml)
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/cover.xhtml", coverXhtml(NO_SLASH_COVERS+IMAGE_NAME))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/cover.xhtml", coverXhtml(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title))
 
+	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/package.opf)
 	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
 	if err != nil {
 		return
 	}
 
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_SLASH_COVERS+IMAGE_NAME))
+	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author))
 
 	fmt.Println("Successfully created ", newFilePath)
 }
@@ -130,11 +151,11 @@ func numberGen() string {
 }
 
 // helper function for creating cover.xhtml file (/new-dir-###/EPUB/cover.xhtml)
-func coverXhtml(path string) string {
+func coverXhtml(path, title string) string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
 		<head>
-			<title>` + TITLE_NAME + `</title>
+			<title>` + title + `</title>
 			<style type="text/css">
 				img{
 					max-width:100%;
@@ -151,18 +172,18 @@ func coverXhtml(path string) string {
 }
 
 // helper function for creating package.opf file (/new-dir-###/EPUB/package.opf)
-func epubPackageOpf(path string) string {
+func epubPackageOpf(path, title, author string) string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
 		xmlns:dcterms="http://purl.org/dc/terms/" version="3.0" xml:lang="en"
 		unique-identifier="pub-identifier">
 		<metadata>
 			<dc:identifier id="pub-identifier">urn:isbn:123</dc:identifier>
-			<dc:title id="pub-title">` + TITLE_NAME + `</dc:title>
+			<dc:title id="pub-title">` + title + `</dc:title>
 			<dc:language id="pub-language">en</dc:language>
 			<dc:date>2022-08-15</dc:date>
 			<meta property="dcterms:modified">2012-10-24T15:30:00Z</meta>
-			<dc:creator id="pub-creator12">` + AUTHOR_NAME + `</dc:creator>
+			<dc:creator id="pub-creator12">` + author + `</dc:creator>
 			<dc:contributor>Fiona</dc:contributor>
 			<dc:publisher>` + PUBLISHER_NAME + `</dc:publisher>
 			<dc:rights>` + COPYRIGHT + `</dc:rights>
