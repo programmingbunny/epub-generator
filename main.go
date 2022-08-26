@@ -28,6 +28,7 @@ const (
 	NO_FRONT_SLASH_COVERS = "covers/"
 	MIMETYPE              = "/mimetype"
 
+	TOC            = "bk-toc"
 	WRITE_MIMETYPE = "application/epub+zip"
 	IMAGE_NAME     = "cover-test.jpg"
 )
@@ -120,10 +121,15 @@ func main() {
 		return
 	}
 
-	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author))
+	// opens & writes to bk-toc.xhtml in EPUB directory (/new-dir-###/EPUB/bk-toc.xhtml)
+	// openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch"+strconv.Itoa(newChapter.ChapterNum)))
 
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch"+strconv.Itoa(newChapter.ChapterNum)+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch"+strconv.Itoa(newChapter.ChapterNum)))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch-"+strconv.Itoa(newChapter.ChapterNum)))
+
+	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, newChapter))
+
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(newChapter.ChapterNum)+".xhtml", createNewChapter(newChapter))
 
 	fmt.Println("Successfully created ", newFilePath)
 
@@ -167,13 +173,18 @@ func getChapter(id string) model.Chapter {
 	return newChapter
 }
 
-func makeNewDirectory(path string) (err error) {
-	err = os.Mkdir(path, os.ModePerm)
-	if err != nil {
-		fmt.Println("Following error when trying to create"+path+"directory: ", err)
-		return err
-	}
-	return nil
+func createNewChapter(chapter model.Chapter) string {
+	returnThis := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+	<!DOCTYPE html>
+	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
+		<head>
+			<title>` + chapter.Title + `</title>
+		</head>
+		<body>
+				<p>` + chapter.Text + `</p>
+		</body>
+	</html>`
+	return returnThis
 }
 
 // helper function for generating unique id for parent directory of epub file
@@ -204,7 +215,7 @@ func coverXhtml(path, title string) string {
 }
 
 // helper function for creating package.opf file (/new-dir-###/EPUB/package.opf)
-func epubPackageOpf(path, title, author string) string {
+func epubPackageOpf(path, title, author string, chapter model.Chapter) string {
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
 		xmlns:dcterms="http://purl.org/dc/terms/" version="3.0" xml:lang="en"
@@ -231,12 +242,15 @@ func epubPackageOpf(path, title, author string) string {
 			<link rel="dcterms:conformsTo" href="http://www.idpf.org/epub/a11y/accessibility-20170105.html#wcag-aa"/>
 		</metadata>
 		<manifest>
+			<item id="htmltoc" properties="nav" media-type="application/xhtml+xml" href="` + TOC + `.xhtml"/>
 			<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
 			<item id="cover-image" properties="cover-image" href="` + path + `" media-type="image/jpeg"/>
+			<item id="id-id2635343" href="ch-` + strconv.Itoa(chapter.ChapterNum) + ".xhtml" + `" media-type="application/xhtml+xml"/>
 		</manifest>
 		<spine>
 			<itemref idref="cover" linear="no"/>
 			<itemref idref="htmltoc" linear="yes"/>
+			<itemref idref="id-id2635343"/>
 		</spine>
 	</package>`
 	return returnThis
@@ -278,6 +292,7 @@ func createTOC(title, subtitle, chapter, chapterNum string) string {
 	return returnThis
 }
 
+// create directory/files
 func createFiles(cwd, directory, fileName string) (string, string, *os.File, error) {
 	path := filepath.Join(cwd, directory, fileName)
 	newFilePath := filepath.FromSlash(path)
@@ -303,6 +318,15 @@ func openWriteFiles(file *os.File, path, fileName, write string) error {
 	if err2 != nil {
 		fmt.Println("Could not write text to "+path+fileName+": ", err)
 		return nil
+	}
+	return nil
+}
+
+func makeNewDirectory(path string) (err error) {
+	err = os.Mkdir(path, os.ModePerm)
+	if err != nil {
+		fmt.Println("Following error when trying to create"+path+"directory: ", err)
+		return err
 	}
 	return nil
 }
