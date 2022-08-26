@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/programmingbunny/epub-generator/model"
 )
@@ -32,28 +33,18 @@ const (
 )
 
 func main() {
-	id := "insertIdHereForTesting"
-	response, err := http.Get("http://localhost:3000/book/" + id)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
 
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
+	newBook := getBookDetails("62fff4f050997e76eb444d21")
 
-	var newBook model.Book
-	json.Unmarshal(responseData, &newBook)
+	newChapter := getChapter("6301967ee1f30f03cdaf3f38")
+	fmt.Println(newChapter)
 
 	name := numberGen()
 
 	cwd, _ := os.Getwd()
 
 	// makes the parent directory (/new-dir-###/)
-	err = makeNewDirectory(NEW_DIRECTORY + name)
+	err := makeNewDirectory(NEW_DIRECTORY + name)
 	if err != nil {
 		return
 	}
@@ -132,7 +123,48 @@ func main() {
 	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
 	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author))
 
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch"+strconv.Itoa(newChapter.ChapterNum)+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch"+strconv.Itoa(newChapter.ChapterNum)))
+
 	fmt.Println("Successfully created ", newFilePath)
+
+}
+
+func getBookDetails(id string) model.Book {
+	response, err := http.Get("http://localhost:3000/book/" + id)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.Book{}
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.Book{}
+	}
+
+	var newBook model.Book
+	json.Unmarshal(responseData, &newBook)
+
+	return newBook
+}
+
+func getChapter(id string) model.Chapter {
+	response, err := http.Get("http://localhost:3000/chapter/" + id)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.Chapter{}
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.Chapter{}
+	}
+
+	var newChapter model.Chapter
+	json.Unmarshal(responseData, &newChapter)
+
+	return newChapter
 }
 
 func makeNewDirectory(path string) (err error) {
@@ -218,6 +250,31 @@ func containerXml() string {
 			<rootfile full-path="EPUB/package.opf" media-type="application/oebps-package+xml"/>
 		</rootfiles>
 	</container>`
+	return returnThis
+}
+
+// helper function for creating table of content (/new-dir-###/EPUB/bk01-toc.xhtml)
+func createTOC(title, subtitle, chapter, chapterNum string) string {
+	returnThis := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+	<!DOCTYPE html>
+	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en"
+		lang="en">
+		<head>
+			<title>` + title + `</title>
+			<link rel="stylesheet" type="text/css" href="css/epub.css" />
+		</head>
+		<body>
+			<h1>` + title + `</h1>
+			<h1><i>` + subtitle + `</i></h1>
+			<nav epub:type="toc" id="toc" role="doc-toc">
+				<h2>Table of Contents</h2>
+				<ol>
+					<li><a href="` + chapterNum + `.xhtml">` + chapter + `</a>
+					</li>
+				</ol>
+			</nav>
+		</body>
+	</html>`
 	return returnThis
 }
 
