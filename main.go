@@ -2,16 +2,14 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	"github.com/programmingbunny/epub-generator/controller/chapter"
 	"github.com/programmingbunny/epub-generator/model"
 )
 
@@ -34,11 +32,9 @@ const (
 )
 
 func main() {
+	newBook := chapter.GetBookDetails("630c424a0b3339afae9fcbf0")
 
-	newBook := getBookDetails("62fff4f050997e76eb444d21")
-
-	newChapter := getChapter("6301967ee1f30f03cdaf3f38")
-	fmt.Println(newChapter)
+	allChapters := chapter.GetChapters("630c424a0b3339afae9fcbf0")
 
 	name := numberGen()
 
@@ -124,53 +120,17 @@ func main() {
 	// opens & writes to bk-toc.xhtml in EPUB directory (/new-dir-###/EPUB/bk-toc.xhtml)
 	// openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch"+strconv.Itoa(newChapter.ChapterNum)))
 
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", createTOC(newBook.Title, newBook.Subtitle, newChapter.Title, "ch-"+strconv.Itoa(newChapter.ChapterNum)))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", createTOC(newBook.Title, newBook.Subtitle, allChapters))
 
 	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, newChapter))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", epubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, allChapters))
 
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(newChapter.ChapterNum)+".xhtml", createNewChapter(newChapter))
+	for i := range allChapters.Chapters {
+		openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(allChapters.Chapters[i].ChapterNum)+".xhtml", createNewChapter(allChapters.Chapters[i]))
+	}
 
 	fmt.Println("Successfully created ", newFilePath)
 
-}
-
-func getBookDetails(id string) model.Book {
-	response, err := http.Get("http://localhost:3000/book/" + id)
-	if err != nil {
-		fmt.Println(err.Error())
-		return model.Book{}
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		return model.Book{}
-	}
-
-	var newBook model.Book
-	json.Unmarshal(responseData, &newBook)
-
-	return newBook
-}
-
-func getChapter(id string) model.Chapter {
-	response, err := http.Get("http://localhost:3000/chapter/" + id)
-	if err != nil {
-		fmt.Println(err.Error())
-		return model.Chapter{}
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		return model.Chapter{}
-	}
-
-	var newChapter model.Chapter
-	json.Unmarshal(responseData, &newChapter)
-
-	return newChapter
 }
 
 func createNewChapter(chapter model.Chapter) string {
@@ -215,7 +175,8 @@ func coverXhtml(path, title string) string {
 }
 
 // helper function for creating package.opf file (/new-dir-###/EPUB/package.opf)
-func epubPackageOpf(path, title, author string, chapter model.Chapter) string {
+func epubPackageOpf(path, title, author string, chapter model.Chapters) string {
+	test1, test2 := createItemIdForPackageOpf(chapter)
 	returnThis := `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 	<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
 		xmlns:dcterms="http://purl.org/dc/terms/" version="3.0" xml:lang="en"
@@ -245,15 +206,33 @@ func epubPackageOpf(path, title, author string, chapter model.Chapter) string {
 			<item id="htmltoc" properties="nav" media-type="application/xhtml+xml" href="` + TOC + `.xhtml"/>
 			<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
 			<item id="cover-image" properties="cover-image" href="` + path + `" media-type="image/jpeg"/>
-			<item id="id-id2635343" href="ch-` + strconv.Itoa(chapter.ChapterNum) + ".xhtml" + `" media-type="application/xhtml+xml"/>
+			` + test1 + `
 		</manifest>
 		<spine>
 			<itemref idref="cover" linear="no"/>
 			<itemref idref="htmltoc" linear="yes"/>
-			<itemref idref="id-id2635343"/>
+			` + test2 + `
 		</spine>
 	</package>`
 	return returnThis
+}
+
+func createItemIdForPackageOpf(chapter model.Chapters) (string, string) {
+	var itemId string
+	var arrayOfItemIds []string
+	for i := range chapter.Chapters {
+		singleItemId := numberGen()
+		itemId = itemId + `<item id="id-` + singleItemId + `" href="ch-` + strconv.Itoa(chapter.Chapters[i].ChapterNum) + `.xhtml" media-type="application/xhtml+xml"/>
+					`
+		arrayOfItemIds = append(arrayOfItemIds, singleItemId)
+	}
+
+	var stringForItemIds string
+	for i := range arrayOfItemIds {
+		stringForItemIds = stringForItemIds + `<itemref idref="id-` + arrayOfItemIds[i] + `"/>
+					`
+	}
+	return itemId, stringForItemIds
 }
 
 // helper function for creating container.xml (/new-dir-###/META-INF/container.xml)
@@ -267,8 +246,24 @@ func containerXml() string {
 	return returnThis
 }
 
+func createChapterForTOC(allChapters []string) string {
+	var test string
+	for i := range allChapters {
+		test = test + allChapters[i]
+	}
+	return test
+}
+
 // helper function for creating table of content (/new-dir-###/EPUB/bk01-toc.xhtml)
-func createTOC(title, subtitle, chapter, chapterNum string) string {
+func createTOC(title, subtitle string, chapter model.Chapters) string {
+	var stringTest []string
+	for i := range chapter.Chapters {
+		var singleTest string
+		singleTest = `<li><a href="ch-` + strconv.Itoa(chapter.Chapters[i].ChapterNum) + `.xhtml">` + chapter.Chapters[i].Title + `</a></li>
+					`
+		stringTest = append(stringTest, singleTest)
+	}
+	testingThis := createChapterForTOC(stringTest)
 	returnThis := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 	<!DOCTYPE html>
 	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en"
@@ -283,8 +278,7 @@ func createTOC(title, subtitle, chapter, chapterNum string) string {
 			<nav epub:type="toc" id="toc" role="doc-toc">
 				<h2>Table of Contents</h2>
 				<ol>
-					<li><a href="` + chapterNum + `.xhtml">` + chapter + `</a>
-					</li>
+					` + testingThis + `
 				</ol>
 			</nav>
 		</body>
