@@ -30,6 +30,8 @@ func GetChapters(id string) model.Chapters {
 	return newChapter
 }
 
+// calls epub-backend client
+// uses book's unique _id to retrieve book details (title, author name, etc.)
 func GetBookDetails(id string) model.Book {
 	response, err := http.Get("http://localhost:3000/book/" + id)
 	if err != nil {
@@ -49,6 +51,8 @@ func GetBookDetails(id string) model.Book {
 	return newBook
 }
 
+// calls epub-backend client
+// uses a chapter's unique _id to retrieve that chapter's data
 func getChapter(id string) model.Chapter {
 	response, err := http.Get("http://localhost:3000/chapter/" + id)
 	if err != nil {
@@ -66,4 +70,18 @@ func getChapter(id string) model.Chapter {
 	json.Unmarshal(responseData, &newChapter)
 
 	return newChapter
+}
+
+func CreateNewChapter(chapter model.Chapter) string {
+	returnThis := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+	<!DOCTYPE html>
+	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
+		<head>
+			<title>` + chapter.Title + `</title>
+		</head>
+		<body>
+				<p>` + chapter.Text + `</p>
+		</body>
+	</html>`
+	return returnThis
 }
