@@ -54,11 +54,7 @@ func CreateBook() http.HandlerFunc {
 	}
 }
 
-func creation(model.Chapters, model.Book) (string, error) {
-	newBook := chapter.GetBookDetails("630edd3515efbfaf37837b56")
-
-	allChapters := chapter.GetChapters("630c424a0b3339afae9fcbf0")
-
+func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	name := helpers.NumberGen()
 
 	cwd, _ := os.Getwd()
