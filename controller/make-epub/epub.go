@@ -28,6 +28,9 @@ const (
 	COVERS                = "/covers"
 	NO_FRONT_SLASH_COVERS = "covers/"
 	MIMETYPE              = "/mimetype"
+	COVER                 = "cover.xhtml"
+	PACKAGE               = "package.opf"
+	CONTAINER             = "container.xml"
 
 	TOC            = "bk-toc"
 	WRITE_MIMETYPE = "application/epub+zip"
@@ -93,13 +96,13 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name, MIMETYPE, WRITE_MIMETYPE)
 
 	// create container.xml file in META-INF directory (/new-dir-###/META-INF/container.xml)
-	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+META_INF, "container.xml")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+META_INF, CONTAINER)
 	if err != nil {
 		return "", err
 	}
 
 	// opens & writes to container.xml file in META-inf directory (/new-dir-###/META-INF/container.xml)
-	openWriteFiles(file, NEW_DIRECTORY+name+META_INF, "/container.xml", container.ContainerXml())
+	openWriteFiles(file, NEW_DIRECTORY+name+META_INF, "/"+CONTAINER, container.ContainerXml())
 
 	// adding cover image to EPUB/covers directory
 	sourceFile, err := os.Open(newBook.BookCover)
@@ -122,16 +125,16 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	}
 
 	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/cover.xhtml)
-	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, COVER)
 	if err != nil {
 		return "", err
 	}
 
 	// opens & writes to cover.xhtml file in META-inf directory (/new-dir-###/EPUB/cover.xhtml)
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/cover.xhtml", cover.CoverXhtml(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+COVER, cover.CoverXhtml(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title))
 
 	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/package.opf)
-	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, PACKAGE)
 	if err != nil {
 		return "", err
 	}
@@ -140,7 +143,7 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+TOC+".xhtml", toc.CreateTOC(newBook.Title, newBook.Subtitle, allChapters))
 
 	// opens & writes to package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
-	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/package.opf", opf.EpubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, allChapters))
+	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+PACKAGE, opf.EpubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, allChapters))
 
 	for i := range allChapters.Chapters {
 		openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(allChapters.Chapters[i].ChapterNum)+".xhtml", chapter.CreateNewChapter(allChapters.Chapters[i]))
