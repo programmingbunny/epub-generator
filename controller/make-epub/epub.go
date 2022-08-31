@@ -31,7 +31,7 @@ const (
 
 	TOC            = "bk-toc"
 	WRITE_MIMETYPE = "application/epub+zip"
-	IMAGE_NAME     = "cover-test.jpg"
+	IMAGE_NAME     = "main-cover.jpg"
 )
 
 func CreateBook() http.HandlerFunc {
@@ -55,7 +55,7 @@ func CreateBook() http.HandlerFunc {
 }
 
 func creation(model.Chapters, model.Book) (string, error) {
-	newBook := chapter.GetBookDetails("630c424a0b3339afae9fcbf0")
+	newBook := chapter.GetBookDetails("630edd3515efbfaf37837b56")
 
 	allChapters := chapter.GetChapters("630c424a0b3339afae9fcbf0")
 
@@ -88,7 +88,7 @@ func creation(model.Chapters, model.Book) (string, error) {
 	}
 
 	// create mimetype file in parent directory (/new-dir-###/mimetype)
-	newFilePath, _, file, err := createFiles(cwd, NEW_DIRECTORY+name, "mimetype")
+	_, _, file, err := createFiles(cwd, NEW_DIRECTORY+name, "mimetype")
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +97,7 @@ func creation(model.Chapters, model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name, MIMETYPE, WRITE_MIMETYPE)
 
 	// create container.xml file in META-INF directory (/new-dir-###/META-INF/container.xml)
-	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+META_INF, "container.xml")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+META_INF, "container.xml")
 	if err != nil {
 		return "", err
 	}
@@ -106,14 +106,14 @@ func creation(model.Chapters, model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name+META_INF, "/container.xml", container.ContainerXml())
 
 	// adding cover image to EPUB/covers directory
-	sourceFile, err := os.Open("./cover-test.jpg")
+	sourceFile, err := os.Open(newBook.BookCover)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer sourceFile.Close()
 
 	// create new cover image to EPUB/covers directory
-	newFile, err := os.Create(NEW_DIRECTORY + name + EPUB + COVERS + "/cover-test.jpg")
+	newFile, err := os.Create(NEW_DIRECTORY + name + EPUB + COVERS + "/" + IMAGE_NAME)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func creation(model.Chapters, model.Book) (string, error) {
 	}
 
 	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/cover.xhtml)
-	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "cover.xhtml")
 	if err != nil {
 		return "", err
 	}
@@ -135,7 +135,7 @@ func creation(model.Chapters, model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/cover.xhtml", cover.CoverXhtml(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title))
 
 	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/package.opf)
-	newFilePath, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
+	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, "package.opf")
 	if err != nil {
 		return "", err
 	}
@@ -150,9 +150,9 @@ func creation(model.Chapters, model.Book) (string, error) {
 		openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(allChapters.Chapters[i].ChapterNum)+".xhtml", chapter.CreateNewChapter(allChapters.Chapters[i]))
 	}
 
-	fmt.Println("Successfully created ", newFilePath)
+	fmt.Println("Successfully created " + NEW_DIRECTORY + name)
 
-	return newFilePath, nil
+	return NEW_DIRECTORY + name, nil
 
 }
 
