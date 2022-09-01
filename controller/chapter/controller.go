@@ -85,3 +85,24 @@ func CreateNewChapter(chapter model.Chapter) string {
 	</html>`
 	return returnThis
 }
+
+// calls epub-backend client
+// uses book's unique _id & chapterNum to retrieve chapter header's image location
+func GetChapterHeaderImage(id string, num string) model.ImageHeader {
+	response, err := http.Get("http://localhost:3000/getChapterImage/" + id + "/" + num)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.ImageHeader{}
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return model.ImageHeader{}
+	}
+
+	var imageLoc model.ImageHeader
+	json.Unmarshal(responseData, &imageLoc)
+
+	return imageLoc
+}

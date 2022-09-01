@@ -12,3 +12,8 @@ type Chapters struct {
 	BookID   primitive.ObjectID `json:"bookID,omitempty" bson:"bookID,omitempty"`
 	Chapters []Chapter          `json:"chapters" bson:"chapters"`
 }
+
+type ImageHeader struct {
+	ImageLocation string `json:"imageLocation" bson:"imageLocation"`
+	ChapterNum    int    `json:"chapterNum" bson:"chapterNum"`
+}
