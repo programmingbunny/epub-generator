@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/programmingbunny/epub-generator/controller/chapter"
+	chapter "github.com/programmingbunny/epub-generator/controller/chapter"
 	container "github.com/programmingbunny/epub-generator/controller/container"
 	cover "github.com/programmingbunny/epub-generator/controller/cover"
 	opf "github.com/programmingbunny/epub-generator/controller/package-opf"
@@ -25,6 +25,7 @@ const (
 	NEW_DIRECTORY         = "new-dir-"
 	EPUB                  = "/EPUB"
 	META_INF              = "/META-INF"
+	IMAGES                = "/images"
 	COVERS                = "/covers"
 	NO_FRONT_SLASH_COVERS = "covers/"
 	MIMETYPE              = "/mimetype"
@@ -80,6 +81,12 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 		return "", err
 	}
 
+	// makes the EPUB/images directory within the parent directory (/new-dir-###/EPUB/images)
+	makeNewDirectory(NEW_DIRECTORY + name + EPUB + IMAGES)
+	if err != nil {
+		return "", err
+	}
+
 	// makes the EPUB/covers directory (/new-dir-###/EPUB/covers)
 	makeNewDirectory(NEW_DIRECTORY + name + EPUB + COVERS)
 	if err != nil {
@@ -107,14 +114,14 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	// adding cover image to EPUB/covers directory
 	sourceFile, err := os.Open(newBook.BookCover)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Issue with os.open for newBook.BookCover: ", err)
 	}
 	defer sourceFile.Close()
 
 	// create new cover image to EPUB/covers directory
 	newFile, err := os.Create(NEW_DIRECTORY + name + EPUB + COVERS + "/" + IMAGE_NAME)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Issue with Create for EPUB/covers/IMAGE_NAME: ", err)
 	}
 	defer newFile.Close()
 
@@ -133,7 +140,7 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	// opens & writes to cover.xhtml file in META-inf directory (/new-dir-###/EPUB/cover.xhtml)
 	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+COVER, cover.CoverXhtml(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title))
 
-	// create cover.xhtml file in EPUB directory (/new-dir-###/EPUB/package.opf)
+	// create package.opf file in EPUB directory (/new-dir-###/EPUB/package.opf)
 	_, _, file, err = createFiles(cwd, NEW_DIRECTORY+name+EPUB, PACKAGE)
 	if err != nil {
 		return "", err
@@ -146,6 +153,28 @@ func creation(allChapters model.Chapters, newBook model.Book) (string, error) {
 	openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/"+PACKAGE, opf.EpubPackageOpf(NO_FRONT_SLASH_COVERS+IMAGE_NAME, newBook.Title, newBook.Author, allChapters))
 
 	for i := range allChapters.Chapters {
+		// adding chapter's header image
+		if allChapters.Chapters[i].ImageLocation != "" {
+			sourceFile, err := os.Open(allChapters.Chapters[i].ImageLocation)
+			if err != nil {
+				fmt.Println("Failing during Open of ImageLocation")
+				log.Fatal(err)
+			}
+			defer sourceFile.Close()
+
+			// create new chapter header to EPUB/images directory
+			newFile, err := os.Create(NEW_DIRECTORY + name + EPUB + IMAGES + "/" + helpers.TrimImage(allChapters.Chapters[i].ImageLocation))
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer newFile.Close()
+
+			// copy EPUB/images image into directory
+			_, err = io.Copy(newFile, sourceFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 		openWriteFiles(file, NEW_DIRECTORY+name+EPUB, "/ch-"+strconv.Itoa(allChapters.Chapters[i].ChapterNum)+".xhtml", chapter.CreateNewChapter(allChapters.Chapters[i]))
 	}
 
