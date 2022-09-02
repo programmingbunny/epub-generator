@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/programmingbunny/epub-generator/helpers"
 	"github.com/programmingbunny/epub-generator/model"
 )
 
@@ -73,16 +74,23 @@ func getChapter(id string) model.Chapter {
 }
 
 func CreateNewChapter(chapter model.Chapter) string {
-	returnThis := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+	returnThis := ""
+	if chapter.ImageLocation != "" {
+		returnThis = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 	<!DOCTYPE html>
 	<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
 		<head>
 			<title>` + chapter.Title + `</title>
 		</head>
 		<body>
+				<h1>` + chapter.Title + `</h1>
+				<img src="images/` + helpers.TrimImage(chapter.ImageLocation) + `"/>
 				<p>` + chapter.Text + `</p>
 		</body>
 	</html>`
+	} else {
+		returnThis = ""
+	}
 	return returnThis
 }
 
